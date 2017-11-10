@@ -140,7 +140,7 @@ def telegram_bot():
                 else:
                     try:
                         id_ = int(argument)
-                        if id _not in messages:
+                        if id_ not in messages:
                             return
                         del messages[id_]
                         send_message(
