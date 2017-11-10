@@ -89,7 +89,7 @@ def telegram_bot():
             argument = match.group(2)
 
             def get_message(id_):
-                if id_ in messages:
+                if int(id_) in messages:
                     send_message(messages[id_], admin_group)
 
             def get_all_messages(_):
@@ -117,25 +117,17 @@ def telegram_bot():
                     return
 
                 global tag_message
-
-                try:
-                    id_ = int(id_)
-                    if id_ not in messages:
-                        return
-                    message = template_public.format(
-                        tag_message,
-                        messages[id_]
-                    )
-                    send_message(message, public_group, True)
-                    send_message(message, channel, True)
-                    del messages[id_]
-                    tag_message += 1
-                except ValueError:
-                    send_message(
-                        "No se pudo procesar la respuesta",
-                        admin_group,
-                        True,
-                     )
+                id_ = int(id_)
+                if id_ not in messages:
+                    return
+                message = template_public.format(
+                    tag_message,
+                    messages[id_]
+                )
+                send_message(message, public_group, True)
+                send_message(message, channel, True)
+                del messages[id_]
+                tag_message += 1
 
             def reject_messages(_):
                 if not argument:
@@ -145,36 +137,35 @@ def telegram_bot():
                     send_message("Mensajes eliminados", admin_group, True)
                     return
                 else:
-                    try:
-                        id_ = int(argument)
-                        if id_ not in messages:
-                            return
-                        del messages[id_]
-                        send_message(
-                            "Mensaje con id {} fue rechazado".format(id_),
-                            admin_group,
-                            True,
-                        )
-                    except ValueError:
-                        send_message(
-                            "No se pudo procesar la respuesta",
-                            admin_group,
-                            True,
-                        )
+                    id_ = int(argument)
+                    if id_ not in messages:
+                        return
+                    del messages[id_]
+                    send_message(
+                        "Mensaje con id {} fue rechazado".format(id_),
+                        admin_group,
+                        True,
+                    )
 
             def wrong_command(_):
                 send_message("No existe este comando", admin_group, True)
 
-            {
-                '/get': get_message,
-                '/all': get_all_messages,
-                '/set': tag_message,
-                '/r': admin_response,
-                '/yes': approve_message,
-                '/no': reject_messages,
-            }.get(command, wrong_command)(argument)
-
-        return resp['completed']
+            try:
+                {
+                    '/get': get_message,
+                    '/all': get_all_messages,
+                    '/set': tag_message,
+                    '/r': admin_response,
+                    '/yes': approve_message,
+                    '/no': reject_messages,
+                }.get(command, wrong_command)(argument)
+            except ValueError:
+                send_message(
+                    "No se pudo procesar el comando",
+                    admin_group,
+                    True,
+                 )
+            return resp['completed']
 
     except Exception as e:
         print("ERROR EN EL BOT\n{}".format(e))
