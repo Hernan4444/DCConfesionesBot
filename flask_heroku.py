@@ -56,7 +56,7 @@ def telegram_bot():
         request_data = load_json(request.data)
 
         if "edited_message" in request_data:
-            return 'Action ignored'
+            return "Action ignored"
 
         chat_id = int(request_data["message"]["chat"]["id"])
         text = str(request_data["message"]["text"])
@@ -70,13 +70,13 @@ def telegram_bot():
                 str(id_),
                 text
             ), admin_group, True)
-            return 'Action completed'
+            return "Action completed"
 
         # Si el mensaje viene del grupo de admin
         elif chat_id == admin_group:
             match = re.search(cmd, text)
             if not match:
-                return 'Action ignored'
+                return "Action ignored"
 
             command = match.group(1)
             argument = match.group(2)
@@ -155,7 +155,7 @@ def telegram_bot():
                             True,
                         )
 
-            def wrong_command():
+            def wrong_command(argument):
                 send_message("No existe este comando", admin_group, True)
 
             {
@@ -167,12 +167,12 @@ def telegram_bot():
                 '/no': reject_messages,
             }.get(command, wrong_command)(argument)
 
-            return 'Action completed'
+            return "Action completed"
 
     except Exception as e:
         print("ERROR EN EL BOT\n{}".format(e))
         # Si es que se genera un error que no deja aceptar más mensajes
-        return (500, 500)
+        return "Error"
 
 
 if __name__ == '__main__':
