@@ -1,12 +1,21 @@
 # coding=utf-8
 import flask
 import json
-import requests
 import os
+import re
+import requests
 
+# env vars
 TOKEN = os.environ["token"]
+admin_group = int(os.environ["admin_group"])
+public_group = int(os.environ["public_group"])
+channel = int(os.environ["channel"])
+
+groups = (admin_group, public_group)
 
 app = flask.Flask(__name__)
+messages = {}
+cmd = r"(/[a-zA-Z]*)(?:\s)?(\S*)"
 
 
 def id_generator():
@@ -16,141 +25,154 @@ def id_generator():
         n += 1
 
 
-messages = {}
-template_admin = "*Nuevo Mensaje\tid:* {}\n{}"
-template_public = "*DCConfesión #{} * \n{}"
-
 message_id = id_generator()
 
 
-def send_message(texto, id_, markdown=False):
+def send_message(text, id_, markdown=False):
     url = "https://api.telegram.org/bot{}/".format(TOKEN)
-    params = {"method": "sendMessage",
-              "text": texto,
-              "chat_id": id_}
-
+    params = {
+        "method": "sendMessage",
+        "text": text,
+        "chat_id": id_,
+    }
     if markdown:
         params["parse_mode"] = "Markdown"
         params["disable_web_page_preview"] = "True"
-
     return requests.get(url, params=(params))
 
 
-admin_group = int(os.environ["admin_group"])
-public_gruop = int(os.environ["public_gruop"])
-channel = int(os.environ["channel"])
-
-send_message("*Me han reiniciado :(*", admin_group, True)
+# Templates
+template_admin = "*Nuevo Mensaje\tid:* {}\n{}"
+template_public = "*DCConfesión #{} * \n{}"
+template_admin_message = "*Admin:* {}"
 
 tag_message = 1
+send_message("*Me han reiniciado :(*", admin_group, True)
 
 
 @app.route('/Bot', methods=["POST", "GET"])
 def telegram_bot():
-    global tag_message
-
     try:
-        if "edited_message" not in json.loads(flask.request.data):
-            # Solo cuando le mandan un nuevo mensaje
+        request_data = json.loads(flask.request.data)
 
-            chat_id = int(json.loads(flask.request.data)
-                          ["message"]["chat"]["id"])
-            text = str(json.loads(flask.request.data)["message"]["text"])
+        if "edited_message" in request_data:
+            return 'Action ignored'
 
-            # Un nuevo mensaje que no de ninguno de los dos grupos
-            if chat_id != admin_group and chat_id != public_gruop and not \
-                    text.startswith("/"):
+        chat_id = int(request_data["message"]["chat"]["id"])
+        text = str(request_data["message"]["text"])
 
-                # le mando el mensaje a los admin y guardo este con un id único
-                id_ = next(message_id)
-                messages[id_] = text
-                send_message(template_admin.format(
-                    str(id_), text), admin_group, True)
+        # Un nuevo mensaje que no de ninguno de los dos grupos
+        if chat_id not in groups and not text.startswith("/"):
+            # le mando el mensaje a los admin y guardo este con un id único
+            id_ = next(message_id)
+            messages[id_] = text
+            send_message(template_admin.format(
+                str(id_),
+                text
+            ), admin_group, True)
+            return 'Action completed'
 
-            # Si el mensaje viene del grupo de admin
-            elif chat_id == admin_group:
+        # Si el mensaje viene del grupo de admin
+        elif chat_id == admin_group:
+            match = re.search(cmd, text)
+            if not match:
+                return 'Action ignored'
 
-                if text.lower().startswith("/get"):
-                    command, id_ = text.strip().split(" ")
+            command = match.group(1)
+            argument = match.group(2)
+
+            def get_message(_id):
+                if id_ in messages:
+                    send_message(messages[id_], admin_group)
+
+            def get_all_messages():
+                if not messages:
+                    send_message("No hay mensajes pendientes", admin_group)
+                else:
+                    text = ", ".join([str(k) for k in messages])
+                    send_message(text, admin_group)
+
+            def set_tag(new_id):
+                global tag_message
+                tag_message = int(new_id)
+                send_message(
+                    "ID de los mensajes seteado en {}".format(tag_message),
+                    admin_group,
+                )
+
+            def admin_response(text):
+                message = template_admin_message.format(text)
+                send_message(message, public_group, True)
+                send_message(message, channel, True)
+
+            def approve_message(id_):
+                if not id_:
+                    return
+
+                global tag_message
+
+                try:
                     id_ = int(id_)
+                    if id_ not in messages:
+                        return
+                    message = template_public.format(
+                        tag_message,
+                        messages[_id]
+                    )
+                    send_message(message, public_group, True)
+                    send_message(message, channel, True)
+                    del messages[id_]
+                    tag_message += 1
+                except ValueError:
+                    send_message(
+                        "No se pudo procesar la respuesta",
+                        admin_group,
+                        True,
+                     )
 
-                    if id_ in messages:
-                        send_message(messages[id_], admin_group)
-
-                elif text.lower().startswith("/all"):
-                    if len(messages.keys()) == 0:
-                        send_message("No hay mensajes pendientes", admin_group)
-                    else:
-                        text = ", ".join([str(x) for x in messages.keys()])
-                        send_message(text, admin_group)
-
-                elif text.lower().startswith("/set"):
-                    new_id = int(text.replace("/set ", ""))
-                    tag_message = new_id
-                    send_message("ID de los mensajes seteado en {}".format(
-                        tag_message), admin_group)
-
-                elif text.lower().startswith("/r"):
-                    text = text.replace("/r ", "")
-                    send_message("*Admin: *" + text, public_gruop, True)
-                    send_message("*Admin: *" + text, channel, True)
-
-                elif text.lower().startswith("/yes"):
-                    try:
-                        command, id_ = text.strip().split(" ")
-                        id_ = int(id_)
-                        if id_ in messages:
-                            send_message(
-                                template_public.format(
-                                    tag_message, messages[id_]
-                                ),
-                                public_gruop,
-                                True)
-                            send_message(
-                                template_public.format(
-                                    tag_message, messages[id_]
-                                ),
-                                channel,
-                                True,
-                            )
-
-                            del messages[id_]
-                            tag_message += 1
-
-                    except ValueError:
-                        send_message("No se pudo procesar la respuesta",
-                                     admin_group,
-                                     True)
-                elif text.lower().startswith("/no all"):
+            def reject_messages(argument):
+                if not argument:
+                    return
+                elif argument == 'all':
                     messages.clear()
-                    send_message("Mensajes eliminados",
-                                 admin_group,
-                                 True)
-
-                elif text.lower().startswith("/no"):
+                    send_message("Mensajes eliminados", admin_group, True)
+                    return
+                else:
                     try:
-                        command, id_ = text.strip().split(" ")
-                        id_ = int(id_)
-                        if id_ in messages:
-                            del messages[id_]
-                            send_message(
-                                "Mensaje con id {} fue rechazado".format(id_),
-                                admin_group,
-                                True
-                            )
+                        id_ = int(argument)
+                        if id _not in messages:
+                            return
+                        del messages[id_]
+                        send_message(
+                            "Mensaje con id {} fue rechazado".format(id_),
+                            admin_group,
+                            True,
+                        )
                     except ValueError:
-                        send_message("No se pudo procesar la respuesta",
-                                     admin_group,
-                                     True)
-            return "None"
+                        send_message(
+                            "No se pudo procesar la respuesta",
+                            admin_group,
+                            True,
+                        )
 
-        return "None"
+            def wrong_command():
+                send_message("No existe este comando", admin_group, True)
+
+            {
+                '/get': get_message,
+                '/all': get_all_messages,
+                '/set': tag_message,
+                '/r': admin_response,
+                '/yes': approve_message,
+                '/no': reject_messages,
+            }.get(command, wrong_command)(argument)
+
+            return 'Action completed'
 
     except Exception as e:
-        print("ERROR EN EL BOT\n", e)
+        print("ERROR EN EL BOT\n{}".format(e))
         # Si es que se genera un error que no deja aceptar más mensajes
-        return "None"
-
+        return (500, 500)
 
 if __name__ == '__main__':
     app.run()
