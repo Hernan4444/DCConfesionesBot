@@ -41,6 +41,13 @@ def send_message(text, id_, markdown=False):
     return requests.get(url, params=(params))
 
 
+# Responses
+
+resp = {
+    "completed": "Action Completed",
+    "ignored": "Action Ignored",
+}
+
 # Templates
 template_admin = "*Nuevo Mensaje\tid:* {}\n{}"
 template_public = "*DCConfesión #{} * \n{}"
@@ -56,7 +63,7 @@ def telegram_bot():
         request_data = load_json(request.data)
 
         if "edited_message" in request_data:
-            return "Action ignored"
+            return resp['ignored']
 
         chat_id = int(request_data["message"]["chat"]["id"])
         text = str(request_data["message"]["text"])
@@ -70,13 +77,13 @@ def telegram_bot():
                 str(id_),
                 text
             ), admin_group, True)
-            return "Action completed"
+            return resp['completed']
 
         # Si el mensaje viene del grupo de admin
         elif chat_id == admin_group:
             match = re.search(cmd, text)
             if not match:
-                return "Action ignored"
+                return resp['ignored']
 
             command = match.group(1)
             argument = match.group(2)
@@ -85,7 +92,7 @@ def telegram_bot():
                 if id_ in messages:
                     send_message(messages[id_], admin_group)
 
-            def get_all_messages():
+            def get_all_messages(_):
                 if not messages:
                     send_message("No hay mensajes pendientes", admin_group)
                 else:
@@ -107,14 +114,14 @@ def telegram_bot():
 
             def approve_message(id_):
                 if not id_:
-                    return
+                    return resp['ignored']
 
                 global tag_message
 
                 try:
                     id_ = int(id_)
                     if id_ not in messages:
-                        return
+                        return resp['ignored']
                     message = template_public.format(
                         tag_message,
                         messages[_id]
@@ -130,13 +137,13 @@ def telegram_bot():
                         True,
                      )
 
-            def reject_messages(argument):
+            def reject_messages(_):
                 if not argument:
-                    return
+                    return resp['ignored']
                 elif argument == 'all':
                     messages.clear()
                     send_message("Mensajes eliminados", admin_group, True)
-                    return
+                    return resp['completed']
                 else:
                     try:
                         id_ = int(argument)
@@ -155,7 +162,7 @@ def telegram_bot():
                             True,
                         )
 
-            def wrong_command(argument):
+            def wrong_command(_):
                 send_message("No existe este comando", admin_group, True)
 
             {
@@ -167,7 +174,7 @@ def telegram_bot():
                 '/no': reject_messages,
             }.get(command, wrong_command)(argument)
 
-            return "Action completed"
+            return resp['completed']
 
     except Exception as e:
         print("ERROR EN EL BOT\n{}".format(e))
