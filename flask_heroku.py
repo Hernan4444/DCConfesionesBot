@@ -88,7 +88,7 @@ def telegram_bot():
             command = match.group(1)
             argument = match.group(2)
 
-            def get_message(_id):
+            def get_message(id_):
                 if id_ in messages:
                     send_message(messages[id_], admin_group)
 
@@ -124,7 +124,7 @@ def telegram_bot():
                         return resp['ignored']
                     message = template_public.format(
                         tag_message,
-                        messages[_id]
+                        messages[id_]
                     )
                     send_message(message, public_group, True)
                     send_message(message, channel, True)
