@@ -89,7 +89,8 @@ def telegram_bot():
             argument = match.group(2)
 
             def get_message(id_):
-                if int(id_) in messages:
+                id_ = int(id_)
+                if id_ in messages:
                     send_message(messages[id_], admin_group)
 
             def get_all_messages(_):
