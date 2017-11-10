@@ -1,6 +1,6 @@
 # coding=utf-8
-import flask
-import json
+from flask import Flask, request
+from json import loads as load_json
 import os
 import re
 import requests
@@ -13,7 +13,7 @@ channel = int(os.environ["channel"])
 
 groups = (admin_group, public_group)
 
-app = flask.Flask(__name__)
+app = Flask(__name__)
 messages = {}
 cmd = r"(/[a-zA-Z]*)(?:\s)?(\S*)"
 
@@ -53,7 +53,7 @@ send_message("*Me han reiniciado :(*", admin_group, True)
 @app.route('/Bot', methods=["POST", "GET"])
 def telegram_bot():
     try:
-        request_data = json.loads(flask.request.data)
+        request_data = load_json(request.data)
 
         if "edited_message" in request_data:
             return 'Action ignored'
@@ -173,6 +173,7 @@ def telegram_bot():
         print("ERROR EN EL BOT\n{}".format(e))
         # Si es que se genera un error que no deja aceptar más mensajes
         return (500, 500)
+
 
 if __name__ == '__main__':
     app.run()
