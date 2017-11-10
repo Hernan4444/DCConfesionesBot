@@ -154,7 +154,7 @@ def telegram_bot():
                 {
                     '/get': get_message,
                     '/all': get_all_messages,
-                    '/set': tag_message,
+                    '/set': set_tag,
                     '/r': admin_response,
                     '/yes': approve_message,
                     '/no': reject_messages,
