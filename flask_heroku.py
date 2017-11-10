@@ -114,14 +114,14 @@ def telegram_bot():
 
             def approve_message(id_):
                 if not id_:
-                    return resp['ignored']
+                    return
 
                 global tag_message
 
                 try:
                     id_ = int(id_)
                     if id_ not in messages:
-                        return resp['ignored']
+                        return
                     message = template_public.format(
                         tag_message,
                         messages[id_]
@@ -139,11 +139,11 @@ def telegram_bot():
 
             def reject_messages(_):
                 if not argument:
-                    return resp['ignored']
+                    return
                 elif argument == 'all':
                     messages.clear()
                     send_message("Mensajes eliminados", admin_group, True)
-                    return resp['completed']
+                    return
                 else:
                     try:
                         id_ = int(argument)
@@ -174,7 +174,7 @@ def telegram_bot():
                 '/no': reject_messages,
             }.get(command, wrong_command)(argument)
 
-            return resp['completed']
+        return resp['completed']
 
     except Exception as e:
         print("ERROR EN EL BOT\n{}".format(e))
