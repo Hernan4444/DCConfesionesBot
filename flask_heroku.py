@@ -130,7 +130,7 @@ def telegram_bot():
                 del messages[id_]
                 tag_message += 1
 
-            def reject_messages(_):
+            def reject_messages(argument):
                 if not argument:
                     return
                 elif argument == "all":
