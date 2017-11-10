@@ -42,10 +42,10 @@ def send_message(text, id_, markdown=False):
 
 
 # Responses
-
 resp = {
     "completed": "Action Completed",
     "ignored": "Action Ignored",
+    "error": "Error",
 }
 
 # Templates
@@ -57,13 +57,13 @@ tag_message = 1
 send_message("*Me han reiniciado :(*", admin_group, True)
 
 
-@app.route('/Bot', methods=["POST", "GET"])
+@app.route("/Bot", methods=["POST", "GET"])
 def telegram_bot():
     try:
         request_data = load_json(request.data)
 
         if "edited_message" in request_data:
-            return resp['ignored']
+            return resp["ignored"]
 
         chat_id = int(request_data["message"]["chat"]["id"])
         text = str(request_data["message"]["text"])
@@ -77,13 +77,13 @@ def telegram_bot():
                 str(id_),
                 text
             ), admin_group, True)
-            return resp['completed']
+            return resp["completed"]
 
         # Si el mensaje viene del grupo de admin
         elif chat_id == admin_group:
             match = re.search(cmd, text)
             if not match:
-                return resp['ignored']
+                return resp["ignored"]
 
             command = match.group(1)
             argument = match.group(2)
@@ -132,7 +132,7 @@ def telegram_bot():
             def reject_messages(_):
                 if not argument:
                     return
-                elif argument == 'all':
+                elif argument == "all":
                     messages.clear()
                     send_message("Mensajes eliminados", admin_group, True)
                     return
@@ -152,12 +152,12 @@ def telegram_bot():
 
             try:
                 {
-                    '/get': get_message,
-                    '/all': get_all_messages,
-                    '/set': set_tag,
-                    '/r': admin_response,
-                    '/yes': approve_message,
-                    '/no': reject_messages,
+                    "/get": get_message,
+                    "/all": get_all_messages,
+                    "/set": set_tag,
+                    "/r": admin_response,
+                    "/yes": approve_message,
+                    "/no": reject_messages,
                 }.get(command, wrong_command)(argument)
             except ValueError:
                 send_message(
@@ -165,13 +165,13 @@ def telegram_bot():
                     admin_group,
                     True,
                  )
-            return resp['completed']
+            return resp["completed"]
 
     except Exception as e:
         print("ERROR EN EL BOT\n{}".format(e))
         # Si es que se genera un error que no deja aceptar más mensajes
-        return "Error"
+        return resp["error"]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run()
