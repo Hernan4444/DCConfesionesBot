@@ -55,7 +55,7 @@ def telegram_bot():
         if chat_id not in groups and not text.startswith("/"):
             # le mando el mensaje a los admin y guardo este con un id único
             id_ = next(message_id)
-            text = messages[id_]
+            messages[id_] = text
             messenger.send_admin(template_admin.format(str(id_), text), True)
             return resp["completed"]
 
