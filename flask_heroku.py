@@ -4,7 +4,6 @@ from flask import Flask, request
 from json import loads as load_json
 import os
 import re
-import requests
 
 # env vars
 TOKEN = os.environ["token"]

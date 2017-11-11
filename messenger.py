@@ -1,3 +1,6 @@
+import requests
+
+
 class Messenger():
     def __init__(self, bot_token, admin_group, public_group, channel):
         self.bot_token = bot_token
