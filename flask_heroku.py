@@ -1,4 +1,5 @@
 # coding=utf-8
+from .messenger import Messenger
 from flask import Flask, request
 from json import loads as load_json
 import os
@@ -10,7 +11,6 @@ TOKEN = os.environ["token"]
 admin_group = int(os.environ["admin_group"])
 public_group = int(os.environ["public_group"])
 channel = int(os.environ["channel"])
-
 groups = (admin_group, public_group)
 
 app = Flask(__name__)
@@ -27,20 +27,6 @@ def id_generator():
 
 message_id = id_generator()
 
-
-def send_message(text, id_, markdown=False):
-    url = "https://api.telegram.org/bot{}/".format(TOKEN)
-    params = {
-        "method": "sendMessage",
-        "text": text,
-        "chat_id": id_,
-    }
-    if markdown:
-        params["parse_mode"] = "Markdown"
-        params["disable_web_page_preview"] = "True"
-    return requests.get(url, params=(params))
-
-
 # Responses
 resp = {
     "completed": "Action Completed",
@@ -53,8 +39,10 @@ template_admin = "*Nuevo Mensaje\tid:* {}\n{}"
 template_public = "*DCConfesión #{} * \n{}"
 template_admin_message = "*Admin:* {}"
 
+messenger = Messenger(TOKEN, admin_group, public_group, channel)
+
 tag_message = 1
-send_message("*Me han reiniciado :(*", admin_group, True)
+messenger.send_admin("*Me han reiniciado :(*", True)
 
 
 @app.route("/Bot", methods=["POST", "GET"])
@@ -73,10 +61,10 @@ def telegram_bot():
             # le mando el mensaje a los admin y guardo este con un id único
             id_ = next(message_id)
             messages[id_] = text
-            send_message(template_admin.format(
+            messenger.send_admin(template_admin.format(
                 str(id_),
                 text
-            ), admin_group, True)
+            ), True)
             return resp["completed"]
 
         # Si el mensaje viene del grupo de admin
@@ -91,27 +79,25 @@ def telegram_bot():
             def get_message(id_):
                 id_ = int(id_)
                 if id_ in messages:
-                    send_message(messages[id_], admin_group)
+                    messenger.send_admin(messages[id_])
 
             def get_all_messages(_):
                 if not messages:
-                    send_message("No hay mensajes pendientes", admin_group)
+                    messenger.send_admin("No hay mensajes pendientes")
                 else:
                     text = ", ".join([str(k) for k in messages])
-                    send_message(text, admin_group)
+                    messenger.send_admin(text)
 
             def set_tag(new_id):
                 global tag_message
                 tag_message = int(new_id)
-                send_message(
+                messenger.send_admin(
                     "ID de los mensajes seteado en {}".format(tag_message),
-                    admin_group,
                 )
 
             def admin_response(text):
                 message = template_admin_message.format(text)
-                send_message(message, public_group, True)
-                send_message(message, channel, True)
+                messenger.send_public(message, True)
 
             def approve_message(id_):
                 if not id_:
@@ -125,8 +111,7 @@ def telegram_bot():
                     tag_message,
                     messages[id_]
                 )
-                send_message(message, public_group, True)
-                send_message(message, channel, True)
+                messenger.send_public(message, True)
                 del messages[id_]
                 tag_message += 1
 
@@ -135,21 +120,20 @@ def telegram_bot():
                     return
                 elif argument == "all":
                     messages.clear()
-                    send_message("Mensajes eliminados", admin_group, True)
+                    messenger.send_admin("Mensajes eliminados", True)
                     return
                 else:
                     id_ = int(argument)
                     if id_ not in messages:
                         return
                     del messages[id_]
-                    send_message(
+                    messenger.send_admin(
                         "Mensaje con id {} fue rechazado".format(id_),
-                        admin_group,
                         True,
                     )
 
             def wrong_command(_):
-                send_message("No existe este comando", admin_group, True)
+                messenger.send_admin("No existe este comando", True)
 
             try:
                 {
@@ -161,13 +145,12 @@ def telegram_bot():
                     "/no": reject_messages,
                 }.get(command, wrong_command)(argument)
             except ValueError:
-                send_message(
+                messenger.send_admin(
                     "No se pudo procesar el comando",
-                    admin_group,
                     True,
                  )
             return resp["completed"]
-        
+
         return resp["ignored"]
 
     except Exception as e:
