@@ -1,5 +1,5 @@
 # coding=utf-8
-from .messenger import Messenger
+from messenger import Messenger
 from flask import Flask, request
 from json import loads as load_json
 import os
